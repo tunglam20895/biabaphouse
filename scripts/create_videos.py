@@ -2,17 +2,20 @@
 create_videos.py
 ────────────────
 Luồng cho mỗi sản phẩm:
-  1. Lấy ảnh sản phẩm từ affiliate link (screenshot hoặc URL ảnh)
-  2. Gửi ảnh lên fal.ai → Kling image-to-video (~$0.054/video)
+  1. Tải nhiều ảnh sản phẩm từ image_url (hỗ trợ nhiều URL cách nhau bởi |)
+  2. FFmpeg ghép slideshow nhiều ảnh có hiệu ứng chuyển cảnh fade
   3. Tạo voiceover tiếng Việt bằng ElevenLabs
   4. Ghép audio vào video bằng FFmpeg
   5. Lưu video final vào videos/final/
+
+Cấu trúc products.csv:
+  - Cột image_url: 1 link hoặc nhiều link cách nhau bởi | (pipe)
+    Ví dụ: https://img1.jpg|https://img2.jpg|https://img3.jpg
 """
 
-import os, json, csv, time, requests, subprocess, logging, sys
+import os, json, csv, time, requests, subprocess, logging, sys, textwrap
 from pathlib import Path
 from datetime import datetime
-import base64
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -31,11 +34,10 @@ BASE_DIR      = Path(__file__).parent.parent
 DATA_DIR      = BASE_DIR / "data"
 VIDEOS_DIR    = BASE_DIR / "videos"
 RAW_DIR       = VIDEOS_DIR / "raw"          # ảnh sản phẩm tải về
-AI_VIDEO_DIR  = VIDEOS_DIR / "ai_generated" # video từ fal.ai
 AUDIO_DIR     = VIDEOS_DIR / "audio"        # voiceover mp3
 FINAL_DIR     = VIDEOS_DIR / "final"        # video ghép xong
 
-for d in [RAW_DIR, AI_VIDEO_DIR, AUDIO_DIR, FINAL_DIR]:
+for d in [RAW_DIR, AUDIO_DIR, FINAL_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 SCRIPTS_JSON   = DATA_DIR / "scripts_output.json"
@@ -43,148 +45,157 @@ PRODUCTS_CSV   = DATA_DIR / "products.csv"
 VIDEOS_JSON    = DATA_DIR / "videos_ready.json"
 
 # ── API Keys ──────────────────────────────────────────────────────────────────
-FAL_API_KEY        = os.getenv("FAL_API_KEY")           # fal.ai
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-VOICE_ID           = os.getenv("VOICE_ID", "")          # ElevenLabs Voice ID tiếng Việt
+VOICE_ID           = os.getenv("VOICE_ID", "")
 
-# ── fal.ai Kling config ───────────────────────────────────────────────────────
-# Standard 5s ≈ $0.054 | Pro 5s ≈ $0.14
-KLING_MODEL    = "fal-ai/kling-video/v1/standard/image-to-video"
-KLING_DURATION = "5"       # giây: "5" hoặc "10"
-KLING_RATIO    = "9:16"    # TikTok dọc
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# BƯỚC 1 — Tải ảnh sản phẩm
-# ════════════════════════════════════════════════════════════════════════════
-
-def download_product_image(product_id: str, image_url: str) -> Path | None:
-    """Tải ảnh sản phẩm về máy."""
-    if not image_url:
-        log.warning(f"  ⚠️  Không có image_url cho {product_id}")
-        return None
-
-    ext      = Path(image_url.split("?")[0]).suffix or ".jpg"
-    out_path = RAW_DIR / f"{product_id}{ext}"
-
-    if out_path.exists():
-        log.info(f"  📁 Ảnh đã có sẵn: {out_path.name}")
-        return out_path
-
-    try:
-        resp = requests.get(image_url, timeout=20,
-                            headers={"User-Agent": "Mozilla/5.0"})
-        resp.raise_for_status()
-        out_path.write_bytes(resp.content)
-        log.info(f"  ✅ Tải ảnh xong: {out_path.name}")
-        return out_path
-    except Exception as e:
-        log.error(f"  ❌ Lỗi tải ảnh: {e}")
-        return None
+# ── Slideshow config ──────────────────────────────────────────────────────────
+SLIDE_DURATION   = 3.0    # giây mỗi ảnh hiển thị
+FADE_DURATION    = 0.5    # giây hiệu ứng fade chuyển cảnh
+OUTPUT_WIDTH     = 1080   # TikTok 9:16
+OUTPUT_HEIGHT    = 1920
+MAX_VIDEO_SECS   = 60     # TikTok giới hạn 60 giây
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# BƯỚC 2 — Tạo video từ ảnh bằng fal.ai Kling
+# BƯỚC 1 — Tải ảnh sản phẩm (hỗ trợ nhiều URL)
 # ════════════════════════════════════════════════════════════════════════════
 
-def image_to_video_kling(product_id: str, image_path: Path, prompt: str) -> Path | None:
+def download_images(product_id: str, image_url_raw: str) -> list[Path]:
     """
-    Gửi ảnh lên fal.ai → Kling image-to-video.
-    Trả về đường dẫn file .mp4 đã tải về.
+    Tải ảnh sản phẩm về máy.
+    image_url_raw: 1 URL hoặc nhiều URL cách nhau bởi | (pipe)
+    Trả về list các Path ảnh đã tải.
     """
-    if not FAL_API_KEY:
-        log.error("❌ FAL_API_KEY chưa được set trong .env")
-        return None
+    if not image_url_raw:
+        log.warning(f"  ⚠️  Không có image_url — bỏ qua bước tạo video")
+        return []
 
-    out_path = AI_VIDEO_DIR / f"{product_id}.mp4"
-    if out_path.exists():
-        log.info(f"  📁 Video AI đã có: {out_path.name}")
-        return out_path
+    urls = [u.strip() for u in image_url_raw.split("|") if u.strip()]
+    paths = []
 
-    log.info(f"  🎬 Đang tạo video AI (Kling)...")
+    for idx, url in enumerate(urls):
+        ext      = Path(url.split("?")[0]).suffix.lower()
+        if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+            ext = ".jpg"
+        out_path = RAW_DIR / f"{product_id}_{idx}{ext}"
 
-    # Encode ảnh sang base64 data URI
-    mime = "image/jpeg" if image_path.suffix.lower() in [".jpg",".jpeg"] else "image/png"
-    b64  = base64.b64encode(image_path.read_bytes()).decode()
-    image_data_uri = f"data:{mime};base64,{b64}"
+        if out_path.exists():
+            log.info(f"  📁 Ảnh đã có: {out_path.name}")
+            paths.append(out_path)
+            continue
 
-    headers = {
-        "Authorization": f"Key {FAL_API_KEY}",
-        "Content-Type":  "application/json",
-    }
-    payload = {
-        "image_url":  image_data_uri,
-        "prompt":     prompt,
-        "duration":   KLING_DURATION,
-        "aspect_ratio": KLING_RATIO,
-    }
-
-    # ── Submit job ────────────────────────────────────────────────────────
-    submit_url = f"https://queue.fal.run/{KLING_MODEL}"
-    try:
-        resp = requests.post(submit_url, json=payload, headers=headers, timeout=30)
-        resp.raise_for_status()
-        data     = resp.json()
-        request_id = data.get("request_id")
-        if not request_id:
-            log.error(f"  ❌ Không có request_id: {data}")
-            return None
-        log.info(f"  ⏳ Job submitted | request_id: {request_id}")
-    except Exception as e:
-        log.error(f"  ❌ Lỗi submit Kling: {e}")
-        return None
-
-    # ── Poll kết quả (tối đa 5 phút) ─────────────────────────────────────
-    status_url = f"https://queue.fal.run/{KLING_MODEL}/requests/{request_id}/status"
-    result_url = f"https://queue.fal.run/{KLING_MODEL}/requests/{request_id}"
-    deadline   = time.time() + 300  # 5 phút
-
-    while time.time() < deadline:
-        time.sleep(8)
         try:
-            sr   = requests.get(status_url, headers=headers, timeout=15)
-            status = sr.json().get("status", "")
-            log.info(f"  ... status: {status}")
+            resp = requests.get(url, timeout=20,
+                                headers={"User-Agent": "Mozilla/5.0"})
+            resp.raise_for_status()
+            out_path.write_bytes(resp.content)
+            log.info(f"  ✅ Tải ảnh {idx+1}/{len(urls)}: {out_path.name}")
+            paths.append(out_path)
+        except Exception as e:
+            log.error(f"  ❌ Lỗi tải ảnh {idx+1}: {e}")
 
-            if status == "COMPLETED":
-                break
-            elif status in ("FAILED", "CANCELLED"):
-                log.error(f"  ❌ Job {status}")
-                return None
-        except Exception:
-            pass
-    else:
-        log.error("  ❌ Timeout chờ Kling")
-        return None
+    return paths
 
-    # ── Lấy URL video ─────────────────────────────────────────────────────
-    try:
-        rr        = requests.get(result_url, headers=headers, timeout=15)
-        result    = rr.json()
-        video_url = (result.get("video") or {}).get("url") or \
-                    (result.get("output") or {}).get("video", {}).get("url", "")
-        if not video_url:
-            # Thử flatten output
-            for key in ["video_url", "url"]:
-                video_url = result.get(key, "")
-                if video_url:
-                    break
-        if not video_url:
-            log.error(f"  ❌ Không tìm thấy video URL trong kết quả: {result}")
-            return None
-    except Exception as e:
-        log.error(f"  ❌ Lỗi lấy kết quả: {e}")
-        return None
 
-    # ── Tải video về ──────────────────────────────────────────────────────
-    try:
-        vr = requests.get(video_url, timeout=60)
-        vr.raise_for_status()
-        out_path.write_bytes(vr.content)
-        log.info(f"  ✅ Video AI xong: {out_path.name}")
+# ════════════════════════════════════════════════════════════════════════════
+# BƯỚC 2 — Tạo slideshow bằng FFmpeg
+# ════════════════════════════════════════════════════════════════════════════
+
+def create_slideshow(product_id: str, image_paths: list[Path],
+                     target_duration: float) -> Path | None:
+    """
+    FFmpeg tạo slideshow từ nhiều ảnh với hiệu ứng fade chuyển cảnh.
+    target_duration: tổng thời lượng video (theo độ dài audio)
+    """
+    out_path = FINAL_DIR / f"{product_id}_slide.mp4"
+    if out_path.exists():
+        log.info(f"  📁 Slideshow đã có: {out_path.name}")
         return out_path
-    except Exception as e:
-        log.error(f"  ❌ Lỗi tải video: {e}")
+
+    if not image_paths:
+        log.error("  ❌ Không có ảnh để tạo slideshow")
+        return None
+
+    log.info(f"  🎬 Tạo slideshow từ {len(image_paths)} ảnh ({target_duration:.1f}s)...")
+
+    # Tính slide_duration để vừa đủ target_duration
+    n = len(image_paths)
+    slide_dur = max(SLIDE_DURATION, target_duration / n)
+
+    # Build FFmpeg filter_complex cho slideshow với fade
+    # Mỗi ảnh: scale → pad → setpts → fade in/out
+    inputs = []
+    for p in image_paths:
+        inputs += ["-loop", "1", "-t", str(slide_dur + FADE_DURATION), "-i", str(p)]
+
+    # Filter: scale + pad mỗi ảnh về 1080x1920
+    filter_parts = []
+    for i in range(n):
+        filter_parts.append(
+            f"[{i}:v]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:"
+            f"force_original_aspect_ratio=decrease,"
+            f"pad={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black,"
+            f"setsar=1,fps=30[v{i}]"
+        )
+
+    # Nối các clip với xfade
+    if n == 1:
+        # Chỉ 1 ảnh: zoom in nhẹ (Ken Burns)
+        filter_complex = (
+            f"[0:v]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:"
+            f"force_original_aspect_ratio=decrease,"
+            f"pad={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black,"
+            f"setsar=1,fps=30,"
+            f"zoompan=z='min(zoom+0.0015,1.5)':d={int(target_duration*30)}:"
+            f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+            f"s={OUTPUT_WIDTH}x{OUTPUT_HEIGHT}[vout]"
+        )
+        map_arg = "[vout]"
+    else:
+        # Nhiều ảnh: xfade
+        fc = ";".join(filter_parts)
+
+        # Chain xfade
+        prev = "v0"
+        xfade_parts = []
+        for i in range(1, n):
+            offset = slide_dur * i - FADE_DURATION * i
+            curr   = f"xf{i}"
+            xfade_parts.append(
+                f"[{prev}][v{i}]xfade=transition=fade:"
+                f"duration={FADE_DURATION}:offset={offset:.2f}[{curr}]"
+            )
+            prev = curr
+
+        filter_complex = fc + ";" + ";".join(xfade_parts)
+        map_arg = f"[{prev}]"
+
+    cmd = [
+        "ffmpeg", "-y",
+        *inputs,
+        "-filter_complex", filter_complex,
+        "-map", map_arg,
+        "-t", str(min(target_duration, MAX_VIDEO_SECS)),
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        str(out_path)
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if result.returncode != 0:
+            log.error(f"  ❌ FFmpeg slideshow lỗi:\n{result.stderr[-800:]}")
+            return None
+        log.info(f"  ✅ Slideshow xong: {out_path.name}")
+        return out_path
+    except subprocess.TimeoutExpired:
+        log.error("  ❌ FFmpeg timeout")
+        return None
+    except FileNotFoundError:
+        log.error("  ❌ FFmpeg chưa cài. Tải tại: https://ffmpeg.org/download.html")
         return None
 
 
@@ -195,7 +206,7 @@ def image_to_video_kling(product_id: str, image_path: Path, prompt: str) -> Path
 def generate_voiceover(product_id: str, script_text: str) -> Path | None:
     """Gọi ElevenLabs TTS → lưu file mp3."""
     if not ELEVENLABS_API_KEY:
-        log.error("❌ ELEVENLABS_API_KEY chưa set")
+        log.error("❌ ELEVENLABS_API_KEY chưa set trong .env")
         return None
     if not VOICE_ID:
         log.error("❌ VOICE_ID chưa set trong .env — lấy tại elevenlabs.io/app/voice-library")
@@ -216,9 +227,9 @@ def generate_voiceover(product_id: str, script_text: str) -> Path | None:
         "text": script_text,
         "model_id": "eleven_multilingual_v2",
         "voice_settings": {
-            "stability":        0.5,
-            "similarity_boost": 0.75,
-            "style":            0.3,
+            "stability":         0.5,
+            "similarity_boost":  0.75,
+            "style":             0.3,
             "use_speaker_boost": True,
         },
     }
@@ -229,57 +240,48 @@ def generate_voiceover(product_id: str, script_text: str) -> Path | None:
         log.info(f"  ✅ Voiceover xong: {out_path.name}")
         return out_path
     except Exception as e:
-        log.error(f"  ❌ Lỗi ElevenLabs: {e} | {getattr(e.response,'text','') if hasattr(e,'response') else ''}")
+        log.error(f"  ❌ Lỗi ElevenLabs: {e}")
         return None
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# BƯỚC 4 — Ghép audio vào video bằng FFmpeg
+# BƯỚC 4 — Ghép audio vào slideshow bằng FFmpeg
 # ════════════════════════════════════════════════════════════════════════════
 
-def merge_audio_video(product_id: str, video_path: Path, audio_path: Path) -> Path | None:
-    """
-    FFmpeg: ghép voiceover vào video AI.
-    - Nếu audio dài hơn video → loop video cho đủ độ dài audio
-    - Output: 9:16, H.264, AAC, tối đa 60 giây (TikTok limit)
-    """
-    out_path = FINAL_DIR / f"{product_id}_final.mp4"
-    if out_path.exists():
-        log.info(f"  📁 Video final đã có: {out_path.name}")
-        return out_path
-
-    log.info("  🔧 Ghép audio + video (FFmpeg)...")
-
-    # Lấy độ dài audio để loop video cho vừa
-    probe_cmd = [
+def get_audio_duration(audio_path: Path) -> float:
+    """Lấy độ dài audio bằng ffprobe."""
+    cmd = [
         "ffprobe", "-v", "error",
         "-show_entries", "format=duration",
         "-of", "default=noprint_wrappers=1:nokey=1",
         str(audio_path)
     ]
     try:
-        audio_duration = float(
-            subprocess.check_output(probe_cmd, stderr=subprocess.DEVNULL).decode().strip()
+        return float(
+            subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
         )
     except Exception:
-        audio_duration = 30.0  # fallback
+        return 30.0
 
-    # Giới hạn 60 giây cho TikTok
-    target_duration = min(audio_duration, 60.0)
-    log.info(f"  ⏱️  Thời lượng video: {target_duration:.1f}s")
+
+def merge_audio_video(product_id: str, video_path: Path,
+                      audio_path: Path) -> Path | None:
+    """FFmpeg ghép voiceover vào slideshow video."""
+    out_path = FINAL_DIR / f"{product_id}_final.mp4"
+    if out_path.exists():
+        log.info(f"  📁 Video final đã có: {out_path.name}")
+        return out_path
+
+    log.info("  🔧 Ghép audio + video (FFmpeg)...")
+    duration = min(get_audio_duration(audio_path), MAX_VIDEO_SECS)
+    log.info(f"  ⏱️  Thời lượng: {duration:.1f}s")
 
     cmd = [
         "ffmpeg", "-y",
-        "-stream_loop", "-1",        # loop video nếu cần
-        "-i", str(video_path),       # input video (looped)
-        "-i", str(audio_path),       # input audio
-        "-t", str(target_duration),  # cắt đúng độ dài
-        # Scale về 1080x1920 (TikTok 9:16)
-        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,"
-               "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black",
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
+        "-i", str(video_path),
+        "-i", str(audio_path),
+        "-t", str(duration),
+        "-c:v", "copy",
         "-c:a", "aac",
         "-b:a", "128k",
         "-shortest",
@@ -288,11 +290,9 @@ def merge_audio_video(product_id: str, video_path: Path, audio_path: Path) -> Pa
     ]
 
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=120
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode != 0:
-            log.error(f"  ❌ FFmpeg lỗi:\n{result.stderr[-500:]}")
+            log.error(f"  ❌ FFmpeg merge lỗi:\n{result.stderr[-500:]}")
             return None
         log.info(f"  ✅ Video final: {out_path.name}")
         return out_path
@@ -300,33 +300,12 @@ def merge_audio_video(product_id: str, video_path: Path, audio_path: Path) -> Pa
         log.error("  ❌ FFmpeg timeout")
         return None
     except FileNotFoundError:
-        log.error("  ❌ FFmpeg chưa được cài. Tải tại: https://ffmpeg.org/download.html")
+        log.error("  ❌ FFmpeg chưa cài.")
         return None
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# BƯỚC 5 — Tạo video prompt cho Kling từ script
-# ════════════════════════════════════════════════════════════════════════════
-
-def build_kling_prompt(product_name: str, script_text: str) -> str:
-    """
-    Tạo prompt ngắn gọn cho Kling image-to-video.
-    Kling hoạt động tốt nhất với prompt tiếng Anh, mô tả chuyển động.
-    """
-    # Lấy 1-2 keywords từ tên sản phẩm
-    name_short = product_name[:40] if product_name else "fashion product"
-
-    prompt = (
-        f"Product showcase video of {name_short}. "
-        "Smooth slow rotation, cinematic lighting, "
-        "soft bokeh background, professional product photography style, "
-        "elegant motion, 4K quality, TikTok vertical format."
-    )
-    return prompt
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# MAIN — Xử lý tất cả sản phẩm trong scripts_output.json
+# MAIN
 # ════════════════════════════════════════════════════════════════════════════
 
 def load_scripts() -> list[dict]:
@@ -338,7 +317,6 @@ def load_scripts() -> list[dict]:
 
 
 def load_products() -> dict:
-    """Load products.csv thành dict theo product_id."""
     if not PRODUCTS_CSV.exists():
         return {}
     with open(PRODUCTS_CSV, "r", encoding="utf-8") as f:
@@ -364,7 +342,7 @@ def save_videos_ready(videos: list[dict]):
 def run():
     log.info("=" * 58)
     log.info(f"  create_videos.py  |  {datetime.now():%Y-%m-%d %H:%M}")
-    log.info("  Luồng: ảnh sản phẩm → Kling AI video → voiceover → ghép")
+    log.info("  Luồng: ảnh sản phẩm → FFmpeg slideshow → voiceover → ghép")
     log.info("=" * 58)
 
     scripts  = load_scripts()
@@ -390,46 +368,40 @@ def run():
             continue
 
         # ── 1. Tải ảnh ──────────────────────────────────────────────────
-        image_path = None
-        if image_url:
-            image_path = download_product_image(pid, image_url)
-        else:
-            log.warning("  ⚠️  Không có image_url — bỏ qua bước tạo video AI")
-
-        # ── 2. Tạo video AI từ ảnh ───────────────────────────────────────
-        ai_video_path = None
-        if image_path:
-            kling_prompt  = build_kling_prompt(product_name, script_text)
-            ai_video_path = image_to_video_kling(pid, image_path, kling_prompt)
-        else:
-            log.warning("  ⚠️  Không có ảnh — không tạo được video AI")
+        image_paths = download_images(pid, image_url)
+        if not image_paths:
+            log.warning("  ⚠️  Không có ảnh — bỏ qua")
             continue
 
-        if not ai_video_path:
-            log.warning("  ⚠️  Tạo video AI thất bại — bỏ qua sản phẩm này")
-            continue
-
-        # ── 3. Tạo voiceover ─────────────────────────────────────────────
+        # ── 2. Tạo voiceover trước để biết độ dài ────────────────────────
         audio_path = generate_voiceover(pid, script_text)
         if not audio_path:
             log.warning("  ⚠️  Voiceover thất bại — bỏ qua")
             continue
 
-        # ── 4. Ghép video + audio ────────────────────────────────────────
-        final_path = merge_audio_video(pid, ai_video_path, audio_path)
+        # ── 3. Tạo slideshow khớp độ dài audio ───────────────────────────
+        audio_duration = get_audio_duration(audio_path)
+        target_dur     = min(audio_duration, MAX_VIDEO_SECS)
+        slide_path     = create_slideshow(pid, image_paths, target_dur)
+        if not slide_path:
+            log.warning("  ⚠️  Tạo slideshow thất bại — bỏ qua")
+            continue
+
+        # ── 4. Ghép audio + video ────────────────────────────────────────
+        final_path = merge_audio_video(pid, slide_path, audio_path)
         if not final_path:
             log.warning("  ⚠️  Ghép video thất bại — bỏ qua")
             continue
 
-        # ── 5. Ghi vào danh sách sẵn sàng đăng ─────────────────────────
+        # ── 5. Lưu vào danh sách sẵn sàng đăng ─────────────────────────
         videos_ready.append({
-            "product_id":    pid,
-            "product_name":  product_name,
-            "video_path":    str(final_path),
+            "product_id":     pid,
+            "product_name":   product_name,
+            "video_path":     str(final_path),
             "affiliate_link": products.get(pid, {}).get("affiliate_link", ""),
-            "script":        script_text,
-            "created_at":    datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "status":        "ready",
+            "script":         script_text,
+            "created_at":     datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "status":         "ready",
         })
         log.info(f"  🎉 Hoàn tất: {final_path.name}")
 

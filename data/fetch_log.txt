@@ -91,3 +91,61 @@
 14:05:29 [WARNING]     ⚠️  Không thấy nút affiliate link
 14:05:31 [WARNING] ⚠️  5 sản phẩm bỏ qua (không có affiliate link)
 14:05:31 [ERROR] ❌ Không có sản phẩm hợp lệ nào.
+14:38:57 [INFO] ==========================================================
+14:38:57 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 14:38
+14:38:57 [INFO]   Top 1 | Commission cao nhất | Category: Fashion
+14:38:57 [INFO] ==========================================================
+14:38:57 [INFO] ℹ️  Edge không đang mở (hoặc đã đóng rồi).
+14:39:02 [INFO] 🌐 Mở trang Top Products (Edge)...
+14:39:11 [INFO] ✅ Đã vào trang. Đang lọc danh mục...
+14:39:36 [WARNING] ⚠️  Không tìm thấy bộ lọc Category — bỏ qua.
+14:40:10 [WARNING] ⚠️  Không sort được theo Commission.
+14:40:12 [INFO] 📋 Scraping Top 1 sản phẩm...
+14:40:15 [WARNING] ⚠️  Fallback: parse page source
+14:40:15 [INFO] 
+🔄 Đang enrich 1 sản phẩm...
+14:40:15 [INFO] 
+[1/1]
+14:40:15 [INFO]   [] plan
+14:40:51 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:40:53 [WARNING] ⚠️  1 sản phẩm bỏ qua (không có affiliate link)
+14:40:53 [ERROR] ❌ Không có sản phẩm hợp lệ nào.
+14:41:19 [INFO] ==========================================================
+14:41:19 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 14:41
+14:41:19 [INFO]   Top 1 | Commission cao nhất | Category: Fashion
+14:41:19 [INFO] ==========================================================
+14:41:19 [INFO] ℹ️  Edge không đang mở (hoặc đã đóng rồi).
+14:41:24 [INFO] 🌐 Mở trang Top Products (Edge)...
+14:41:31 [INFO] ✅ Đã vào trang. Đang lọc danh mục...
+14:41:56 [WARNING] ⚠️  Không tìm thấy bộ lọc Category — bỏ qua.
+14:42:29 [WARNING] ⚠️  Không sort được theo Commission.
+14:42:31 [INFO] 📋 Scraping Top 1 sản phẩm...
+14:42:34 [WARNING] ⚠️  Fallback: parse page source
+14:42:34 [INFO] 
+🔄 Đang enrich 1 sản phẩm...
+14:42:34 [INFO] 
+[1/1]
+14:42:34 [INFO]   [] plan
+14:43:10 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:43:12 [WARNING] ⚠️  1 sản phẩm bỏ qua (không có affiliate link)
+14:43:12 [ERROR] ❌ Không có sản phẩm hợp lệ nào.
+14:53:29 [INFO] ==========================================================
+14:53:29 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 14:53
+14:53:29 [INFO]   Top 1 | Commission cao nhất | Category: Fashion
+14:53:29 [INFO] ==========================================================
+14:53:29 [INFO] ✅ Đã đóng Edge. Chờ 2 giây...
+14:53:33 [INFO] 🌐 Mở trang Top Products (Edge)...
+14:53:41 [INFO] ⚠️  Bị redirect về trang Seller → force về Creator...
+14:53:46 [INFO] ✅ Đã vào trang. Đang lọc danh mục...
+14:54:10 [WARNING] ⚠️  Không tìm thấy bộ lọc Category — bỏ qua.
+14:54:44 [WARNING] ⚠️  Không sort được theo Commission.
+14:54:46 [INFO] 📋 Scraping Top 1 sản phẩm...
+14:54:49 [WARNING] ⚠️  Fallback: parse page source
+14:54:50 [INFO] 
+🔄 Đang enrich 1 sản phẩm...
+14:54:50 [INFO] 
+[1/1]
+14:54:50 [INFO]   [] plan
+14:55:25 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:55:28 [WARNING] ⚠️  1 sản phẩm bỏ qua (không có affiliate link)
+14:55:28 [ERROR] ❌ Không có sản phẩm hợp lệ nào.

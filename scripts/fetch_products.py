@@ -50,11 +50,7 @@ log = logging.getLogger(__name__)
 # ── Tham số crawl ────────────────────────────────────────────────────────────
 TOP_N      = 1
 CATEGORY   = "Fashion"
-TOP_PRODUCTS_URL = (
-    "https://affiliate.tiktok.com/connection/creator"
-    "?shop_region=VN&tab=top_products"
-)
-
+TOP_PRODUCTS_URL = "https://affiliate.tiktok.com/connection/creator?tab=top_products"
 # ── Edge profile ─────────────────────────────────────────────────────────────
 EDGE_USER_DATA = os.getenv(
     "EDGE_USER_DATA",
@@ -148,6 +144,12 @@ def open_and_setup(driver):
             "→ Đóng Edge hoàn toàn → mở lại → đăng nhập affiliate.tiktok.com\n"
             "→ Đóng Edge → chạy lại script."
         )
+
+    # Nếu bị redirect về trang Seller/platform thì force về Creator
+    if "platform/homepage" in driver.current_url or "shop_id" in driver.current_url:
+        log.info("⚠️  Bị redirect về trang Seller → force về Creator...")
+        driver.get("https://affiliate.tiktok.com/connection/creator?tab=top_products")
+        pause(3, 5)
 
     log.info("✅ Đã vào trang. Đang lọc danh mục...")
     _apply_category(driver)
