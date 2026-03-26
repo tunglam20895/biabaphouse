@@ -1,0 +1,93 @@
+13:46:40 [INFO] ==========================================================
+13:46:40 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:46
+13:46:40 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:46:40 [INFO] ==========================================================
+13:46:40 [INFO] ====== WebDriver manager ======
+13:46:41 [INFO] Get LATEST edgedriver version for Edge 146.0.3856
+13:47:55 [INFO] ==========================================================
+13:47:55 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:47
+13:47:55 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:47:55 [INFO] ==========================================================
+13:53:25 [INFO] ==========================================================
+13:53:25 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:53
+13:53:25 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:53:25 [INFO] ==========================================================
+13:54:09 [INFO] ==========================================================
+13:54:09 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:54
+13:54:09 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:54:09 [INFO] ==========================================================
+13:54:39 [INFO] ==========================================================
+13:54:39 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:54
+13:54:39 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:54:39 [INFO] ==========================================================
+13:55:08 [INFO] ==========================================================
+13:55:08 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:55
+13:55:08 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:55:08 [INFO] ==========================================================
+13:55:10 [INFO] 🌐 Mở trang Top Products (Edge)...
+13:55:15 [ERROR] Chưa đăng nhập TikTok trên Edge.
+→ Đóng Edge hoàn toàn → mở lại → đăng nhập affiliate.tiktok.com
+→ Đóng Edge → chạy lại script.
+13:55:39 [INFO] ==========================================================
+13:55:39 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:55
+13:55:39 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:55:39 [INFO] ==========================================================
+13:55:41 [INFO] 🌐 Mở trang Top Products (Edge)...
+13:55:47 [ERROR] Chưa đăng nhập TikTok trên Edge.
+→ Đóng Edge hoàn toàn → mở lại → đăng nhập affiliate.tiktok.com
+→ Đóng Edge → chạy lại script.
+13:57:48 [INFO] ==========================================================
+13:57:48 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:57
+13:57:48 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:57:48 [INFO] ==========================================================
+13:58:04 [INFO] ==========================================================
+13:58:04 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 13:58
+13:58:04 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+13:58:04 [INFO] ==========================================================
+13:58:07 [INFO] 🌐 Mở trang Top Products (Edge)...
+13:58:16 [INFO] ✅ Đã vào trang. Đang lọc danh mục...
+14:00:09 [INFO] ==========================================================
+14:00:09 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 14:00
+14:00:09 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+14:00:09 [INFO] ==========================================================
+14:00:09 [INFO] ℹ️  Edge không đang mở (hoặc đã đóng rồi).
+14:00:15 [INFO] 🌐 Mở trang Top Products (Edge)...
+14:00:22 [INFO] ✅ Đã vào trang. Đang lọc danh mục...
+14:00:52 [WARNING] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)': /session/524fde2716c96418f81e1562a5cb94d0
+14:00:56 [WARNING] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='localhost', port=57547): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /session/524fde2716c96418f81e1562a5cb94d0
+14:01:01 [WARNING] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='localhost', port=57547): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /session/524fde2716c96418f81e1562a5cb94d0
+14:01:02 [INFO] ==========================================================
+14:01:02 [INFO]   TikTok Affiliate Fetcher (Edge)  2026-03-26 14:01
+14:01:02 [INFO]   Top 5 | Commission cao nhất | Category: Fashion
+14:01:02 [INFO] ==========================================================
+14:01:02 [INFO] ℹ️  Edge không đang mở (hoặc đã đóng rồi).
+14:01:08 [INFO] 🌐 Mở trang Top Products (Edge)...
+14:01:16 [INFO] ✅ Đã vào trang. Đang lọc danh mục...
+14:01:40 [WARNING] ⚠️  Không tìm thấy bộ lọc Category — bỏ qua.
+14:02:14 [WARNING] ⚠️  Không sort được theo Commission.
+14:02:17 [INFO] 📋 Scraping Top 5 sản phẩm...
+14:02:19 [WARNING] ⚠️  Fallback: parse page source
+14:02:19 [INFO] 
+🔄 Đang enrich 5 sản phẩm...
+14:02:19 [INFO] 
+[1/5]
+14:02:19 [INFO]   [] plan
+14:02:55 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:02:58 [INFO] 
+[2/5]
+14:02:58 [INFO]   [] data
+14:03:34 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:03:36 [INFO] 
+[3/5]
+14:03:36 [INFO]   [] connection
+14:04:12 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:04:14 [INFO] 
+[4/5]
+14:04:14 [INFO]   [] platform
+14:04:50 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:04:53 [INFO] 
+[5/5]
+14:04:53 [INFO]   [] product-manage
+14:05:29 [WARNING]     ⚠️  Không thấy nút affiliate link
+14:05:31 [WARNING] ⚠️  5 sản phẩm bỏ qua (không có affiliate link)
+14:05:31 [ERROR] ❌ Không có sản phẩm hợp lệ nào.
